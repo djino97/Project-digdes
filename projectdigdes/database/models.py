@@ -39,7 +39,7 @@ class Supply(Base):
     num_party = Column(Integer, ForeignKey('PartyCargo.num_party'), nullable=False)
     num_truck_departure = Column(Integer, ForeignKey('Truck.num_truck'), primary_key=True)
     id_point = Column(Integer, ForeignKey('Point.id_point'), nullable=False)
-    data_departure = Column(DATETIME, nullable=False)
+    date_departure = Column(DATETIME, nullable=False)
     id_loading = Column(Integer, ForeignKey('Loading.id_loading'), nullable=False)
 
     num_party_supply = relationship("PartyCargo", backref="num_party_cargo")
@@ -73,7 +73,7 @@ class Consumption(Base):
     num_party = Column(Integer, ForeignKey('PartyCargo.num_party'), nullable=False)
     num_truck_arrival = Column(Integer, ForeignKey('Truck.num_truck'), primary_key=True)
     id_point = Column(Integer, ForeignKey('Point.id_point'), nullable=False)
-    data_supply = Column(DATETIME, nullable=False)
+    date_supply = Column(DATETIME, nullable=False)
     id_unloading = Column(Integer, ForeignKey('Unloading.id_unloading'), nullable=False)
 
     num_party_consumption = relationship("PartyCargo", backref="num_party_consumption")
@@ -141,8 +141,10 @@ class Route(Base):
     id_agent = Column(Integer, primary_key=True)
     distance = Column(Integer, nullable=False)
     num_route = Column(Integer, primary_key=True)
-    num_truck = Column(Integer, ForeignKey('Truck.num_truck'),nullable=False)
-    
+    num_party = Column(Integer, ForeignKey('PartyCargo.num_party'), nullable=False)
+
+    num_party_route = relationship("PartyCargo", backref="num_party_route")
+
     __table_args__ = (ForeignKeyConstraint(["id_agent", "distance"],
                                            ["NextPoint.id_agent", "NextPoint.distance"], name="fk_route"),)
     entries = relationship(NextPoint, primaryjoin=
@@ -166,6 +168,7 @@ class Loading(Base):
 
     __table_args__ = ({'sqlite_autoincrement': True})
 
+
 class Unloading(Base):
     """
     The "Unloading" model contains information about the time required for unloading into the truck
@@ -176,5 +179,6 @@ class Unloading(Base):
     unloading_time = Column(Integer, nullable=False)
 
     __table_args__ = ({'sqlite_autoincrement': True})
+
 
 Base.metadata.create_all(engine)
