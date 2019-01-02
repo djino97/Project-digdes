@@ -1,0 +1,5 @@
+PyQt5 == 5.11.3
+graphviz == 0.10.1
+networkx == 2.2
+pydot == 1.4.0
+SQLAlchemy == 1.2.14
