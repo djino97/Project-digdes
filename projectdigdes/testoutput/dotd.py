@@ -1,4 +1,4 @@
-## Deamon that compile GraphViz script into image and display it automatically when the script file is modified
+# Deamon that compile GraphViz script into image and display it automatically when the script file is modified
 # @author David Dorchies
 # @date 07/07/2016
 
@@ -9,42 +9,45 @@ from interface import Example
 import os
 import sys
 from buildgraph import get_route, get__points, \
-    get_pos_agent, math_position, make_dot, lst_optimal, parsing_points, update_graph
+    get_pos_agent, math_position, make_dot, lst_optimal, update_graph, put_truck, update_point_graph
 from project.dijkstra import dijkstra
 from project.math_route import MathRoute
 
-## Read a section in an .ini file and return a dictionnary
-#  @param sIniFile Path to the .ini file to read
-#  @param sSection Section name to read in the .ini file
+# Read a section in an .ini file and return a dictionnary
+#  @param s_ini_file Path to the .ini file to read
+#  @param s_section Section name to read in the .ini file
 #  @return Dictionnary of strings made from couples (key, value)
-def GetItemsIniFile(sIniFile, sSection):
+
+
+def get_items_ini_file(s_ini_file, s_section):
     import configparser as cp
-    CfgPrm = cp.ConfigParser()
-    CfgPrm.read(sIniFile)
-    # initialisation de dPrm : dictionnaire des paramètres généraux de la compilation
-    dPrm = {}
-    if not CfgPrm.has_section(sSection):
+    cfg_prm = cp.ConfigParser()
+    cfg_prm.read(s_ini_file)
+    # initialisation de d_prm : dictionnaire des paramètres généraux de la compilation
+    d_prm = {}
+    if not cfg_prm.has_section(s_section):
         return {}
-    for item in CfgPrm.items(sSection):
-        dPrm[item[0]] = item[1]
-    return dPrm
+    for item in cfg_prm.items(s_section):
+        d_prm[item[0]] = item[1]
+    return d_prm
 
 
-## Class that add the daemon to the QLabel object
+# Class that add the daemon to the QLabel object
 
 
-class myLabel(QtWidgets.QLabel):
+class MyLabel(QtWidgets.QLabel):
 
     def __init__(self, parent=None):
-        super(myLabel, self).__init__(parent)
+        super(MyLabel, self).__init__(parent)
         # Load parameters in dotd.ini
         self.secondWin = None
         self.thirdWin = None
-        self.dDOT = GetItemsIniFile("dotd.ini", "DOT")
+        self.dDOT = get_items_ini_file("dotd.ini", "DOT")
         self.mTime = 0  # Last modified file time
         self.num_step = 0
         self.pos_x_point = 0
         self.pos_y_point = 0
+        self.get_route = True
         self.step = False
         self.pos_x_next_point = 0
         self.pos_y_next_point = 0
@@ -53,8 +56,9 @@ class myLabel(QtWidgets.QLabel):
         self.consumption = []
         self. point = []
         self.all_route = []
-        self.count = 0
-    ## Daemon that run the GraphViz dot tool and display the image in a QLabel window
+        self.count_route = 0
+        
+# Daemon that run the GraphViz dot tool and display the image in a QLabel window
     def daemon(self):
         from subprocess import call
         from PyQt5 import QtGui
@@ -65,7 +69,7 @@ class myLabel(QtWidgets.QLabel):
         btn = QPushButton('Выбрать маршрут', self)
         btn.resize(btn.sizeHint())
         btn.move(0, 0)
-        btn.clicked.connect(self.openWin)
+        btn.clicked.connect(self.open_win)
         if self.step == True:
             self.step_date()
         btn_step = QPushButton('Шаг', self)
@@ -77,11 +81,10 @@ class myLabel(QtWidgets.QLabel):
         btn_math_route.resize(btn_math_route.sizeHint())
         btn_math_route.move(170, 0)
         btn_math_route.clicked.connect(self.message_box)
-
         if self.mTime != os.path.getmtime(dot):
             # Run DOT
-            tRunDOT = "{0} -T{1} \"{2}\" -o \"{2}.{1}\"".format(self.dDOT["exe"], self.dDOT["format"], dot)
-            call(tRunDOT)
+            t_run_dot = "{0} -T{1} \"{2}\" -o \"{2}.{1}\"".format(self.dDOT["exe"], self.dDOT["format"], dot)
+            call(t_run_dot)
             self.setWindowTitle("GraphViz {}.{} {}".format(dot, self.dDOT["format"], datetime.datetime.fromtimestamp(
                 os.path.getmtime(dot)).strftime('%Y-%m-%d %H:%M:%S')))
             pixmap = QtGui.QPixmap("{}.{}".format(dot, self.dDOT["format"]))
@@ -91,7 +94,7 @@ class myLabel(QtWidgets.QLabel):
             self.show()
             self.mTime = os.path.getmtime(dot)
 
-    def openWin(self):
+    def open_win(self):
         if not self.secondWin:
             self.secondWin = Example(self)
         self.secondWin.show()
@@ -102,69 +105,66 @@ class myLabel(QtWidgets.QLabel):
         self.thirdWin.show()
 
     def step_date(self):
-
-        if self.count < 1:
+        """
+        The method is called when pressing the button step,
+        then the truck passes one agent. If true, the method is called
+        from the main code automatically.
+        :return:if truck passes one agent, then return "True",
+        else "False"
+        """
+        if self.step is False:
             self.all_route = get_route()
-            self.count = self.count + 1
-        if self.step == False:
+            self.step = True
+            self.count_route = self.count_route + 1
             for route in self.all_route:
-                self.all_route = self.all_route[1:]
-                agent_points, self.supply, self.consumption, self.next_point, self.point = get__points(route)
-                for agent in agent_points:
-                    self.pos_x_point, self.pos_y_point, self.pos_x_next_point, self.pos_y_next_point = get_pos_agent(agent)
-                    if self.pos_x_point != self.pos_x_next_point or self.pos_y_point != self.pos_y_next_point:
-                        self.step = True
-                        pos_x_point, pos_y_point, img_truck = math_position(self.pos_x_point, self.pos_y_point,
-                                                                        self.pos_x_next_point,
-                                                                        self.pos_y_next_point)
-                        dot_step = make_dot()
-                        optimal = dijkstra(self.next_point, self.supply, self.consumption)
-                        lst_pars = lst_optimal(optimal)
-                        parsing_points(self.point, dot_step, lst=[], pos_x_point=pos_x_point, pos_y_point=pos_y_point,
-                                       img_truck=img_truck)
-                        update_graph(lst_pars, self.next_point, dot_step)
-                        walk = os.getcwd()
-                        write = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
-                        write.write(dot_step.source)
-                        write.close()
+                if self.count_route == route.num_route:
+                    agent_points, self.supply, self.consumption, self.next_point, self.point = get__points(route)
+                    for agent in agent_points:
+                        self.pos_x_point, self.pos_y_point, self.pos_x_next_point, \
+                         self.pos_y_next_point = get_pos_agent(agent)
                         return
+            else:
+                return 
         else:
+            # truck will not reach the end point, then coordinate calculations are performed
             if round(self.pos_x_point) != self.pos_x_next_point or round(self.pos_y_point) != self.pos_y_next_point:
-                self.step = True
                 self.pos_x_point, self.pos_y_point, img_truck = math_position(self.pos_x_point, self.pos_y_point,
                                                                               self.pos_x_next_point,
                                                                               self.pos_y_next_point)
                 dot_step = make_dot()
                 optimal = dijkstra(self.next_point, self.supply, self.consumption)
                 lst_pars = lst_optimal(optimal)
-                parsing_points(self.point, dot_step, lst=[], pos_x_point=self.pos_x_point, pos_y_point=self.pos_y_point,
-                               img_truck=img_truck)
+                update_point_graph(self.point, dot_step)
+                put_truck(dot_step, self.pos_x_point, self.pos_y_point, img_truck)
                 update_graph(lst_pars, self.next_point, dot_step)
                 walk = os.getcwd()
                 write = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
                 write.write(dot_step.source)
                 write.close()
                 return
+
             else:
                 self.step = False
-            return
-## Main program
+                return
+
+
+# Main program
 def draw():
     from PyQt5 import QtCore
-    from interface import Example
+
     # Define script path (Cf. http://diveintopython.adrahon.org/functional_programming/finding_the_path.html)
     sCurrentPath = os.path.abspath(os.path.dirname(sys.argv[0]))
     os.chdir(sCurrentPath)
 
     # Bootstraping QT GUI
     app = QtWidgets.QApplication(sys.argv)
-    label = myLabel()
+    label = MyLabel()
 
     # Defining loop timer for the daemon
     timer = QtCore.QTimer()
     timer.timeout.connect(label.daemon)
-    dDaemon = GetItemsIniFile("dotd.ini", "DAEMON")
-    timer.start(int(dDaemon["sleep"]))
+    d_daemon = get_items_ini_file("dotd.ini", "DAEMON")
+    timer.start(int(d_daemon["sleep"]))
 
     # Exit script when the window is closed
     sys.exit(app.exec_())
