@@ -4,7 +4,6 @@ digraph {
 	node [color=lightblue2 fontsize=20 height=0.9 style=filled weight=20]
 	bgcolor="purple:pink" fontcolor=white label=Logistics nodesep=1.5 ranksep=1
 	1 [label="Тосно" pos="9,2!"]
-	" " [label=<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>> pos="9,2!" shape=plaintext style=""]
 	2 [label="Манола" pos="2,6!"]
 	3 [label="Подпорожье" pos="8,8!"]
 	4 [label="Каменногорск" pos="13,3!"]
