@@ -14,6 +14,11 @@ import random
 
 
 def make_dot():
+    """
+    The graphviz module provides two classes: Graph and Digraph.
+     They create graph descriptions in the DOT language for undirected and directed graphs respectively.
+    :return:dot
+    """
     dot = Digraph(comment='Logistics', graph_attr=dict(size="100,100", layout='neato'),
                   node_attr=dict(style='filled', fontsize='20',
                                  height='0.9', weight='20'))
@@ -23,52 +28,95 @@ def make_dot():
     return dot
 
 
-def parsing_points(state, dot, **kwargs):
-    pos_x = 0
-    n_x = 0
-    n_y = 0
-    pos_y = 0
+def parsing_points(state, dot):
+    """
+    The node()-method takes a "name" identifier as first argument and an optional "label".
+    :param state:
+    :param dot:
+    :return:nothing
+    """
     for point in state:
-        if not kwargs:
-            while pos_x == n_x and pos_y == n_y:
-                n_x = random.randint(0, 14)
-                n_y = random.randint(0, 10)
-            pos_x = n_x
-            pos_y = n_y
-            pos = '{0},{1}!'.format(pos_x, pos_y)
-            session_add_pos(pos, point)
-            dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos)
-        else:
-            position_point = session_get_pos(point)
-            for pos in position_point:
-                dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos.pos_x_and_y)
-                if kwargs['lst']:
-                    for lst in kwargs['lst']:
-                        if lst[0] == point.id_point:
-                            dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
-                                     pos=pos.pos_x_and_y, shape='plaintext', style='')
-                            kwargs['lst'] = []
-    if kwargs['pos_x_point']:
-        if kwargs['img_truck'] == 'truck_right':
+        pos_x = 0
+        n_x = 0
+        n_y = 0
+        pos_y = 0
+        while pos_x == n_x and pos_y == n_y:
+            n_x = random.randint(0, 14)
+            n_y = random.randint(0, 10)
+        pos_x = n_x
+        pos_y = n_y
+        pos = '{0},{1}!'.format(pos_x, pos_y)
+        session_add_pos(pos, point)
+        dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos)
+
+
+def update_point_graph(state, dot):
+    """
+        The node()-method takes a "name" identifier as first argument and an optional "label".
+        :param state:
+        :param dot:
+        :return:nothing
+        """
+    truck = True
+    for point in state:
+        position_point = session_get_pos(point)
+        for pos in position_point:
+            dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos.pos_x_and_y)
+            # If this vertex is supply then the image of the truck is put in these coordinates
+            if truck:
+                dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
+                         pos=pos.pos_x_and_y, shape='plaintext', style='')
+                truck = False
+
+
+def put_truck(dot, pos_x_image, pos_y_image, img_truck):
+    """
+    Image of the truck is put in given coordinates
+    :param dot:
+    :param pos_x_image:
+    :param pos_y_image:
+    :param img_truck:left or right image truck
+    :return: nothing
+    """
+    if img_truck == 'truck_right':
             dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
-                     pos='{0},{1}!'.format(kwargs['pos_x_point'], kwargs['pos_y_point']),
+                     pos='{0},{1}!'.format(pos_x_image, pos_y_image),
                      shape='plaintext', style='')
-        else:
-            dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_left.png"/></TD></TR></TABLE>>',
-                     pos='{0},{1}!'.format(kwargs['pos_x_point'], kwargs['pos_y_point']),
-                     shape='plaintext', style='')
+    else:
+        dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_left.png"/></TD></TR></TABLE>>',
+                 pos='{0},{1}!'.format(pos_x_image, pos_y_image),
+                 shape='plaintext', style='')
 
 
 def parsing_next_point(state, dot):
+    """
+    The edge()-method takes the names of start- and end-node, while edges() takes iterable of name-pairs.
+    :param state: point from the table NextPoint
+    :param dot:
+    :return: nothing
+    """
     for elements in state:
         dot.edge('%s' % elements.id_point, '%s' % elements.id_next_point, label='%s' % elements.distance)
 
 
 def lst_optimal(lst):
+    """
+    Splitting a list into lists of two elements
+    Example, [1, 2, 3] -> [[1, 2], [2, 3]]
+    :param lst: getting function dijkstra
+    :return:lists of two elements
+    """
     return [lst[i:i + 2] for i in range(0, len(lst) - 1)]
 
 
 def update_graph(lst_pars, point, dot_update):
+    """
+    Update edges and route designation red color
+    :param lst_pars:
+    :param point:
+    :param dot_update:
+    :return:nothing
+    """
     restore = lst_pars
     for next_point in point:
             for optimal_point in lst_pars:
@@ -85,7 +133,10 @@ def update_graph(lst_pars, point, dot_update):
 
 
 def main():
-    # buid graph
+    """
+    Creating graph with the first markup points
+    :return: nothing
+    """
     dot = make_dot()
     session_clear_field()
     next_point, point, warehouse = session_create()
@@ -99,12 +150,19 @@ def main():
 
 
 def update_graphic(id_supply, id_consumption, route, empty_truck):
-    # update graph dijkstra
+    """
+    Updating the graph when laying the route
+    :param id_supply: source point
+    :param id_consumption: target point
+    :param route:
+    :param empty_truck:
+    :return: nothing
+    """
     next_point, point, warehouse = session_create()
     dot_update = make_dot()
     optimal = dijkstra(next_point, id_supply, id_consumption)
     lst_pars = lst_optimal(optimal)
-    parsing_points(point, dot_update, flag=True, lst=lst_pars, pos_x_point=[])
+    update_point_graph(point, dot_update)
     update_graph(lst_pars, next_point, dot_update)
     walk = os.getcwd()
     write = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
@@ -114,6 +172,12 @@ def update_graphic(id_supply, id_consumption, route, empty_truck):
 
 
 def position_par(point):
+    """
+    Getting position x and y point route from the Point
+    table attribute pos_x_and_y
+    :param point: all
+    :return: position x, y
+    """
     lst = []
     lst_x = []
     lst_y = []
@@ -153,7 +217,14 @@ def get_pos_agent(agent):
 
 
 def math_position(pos_x_point, pos_y_point, pos_x_next_point, pos_y_next_point):
-    # поставить инкремент или декремент, условие if
+    """
+    Calculation of the position for the truck
+    :param pos_x_point: position x for start point
+    :param pos_y_point: position y for start point
+    :param pos_x_next_point: position x for start point
+    :param pos_y_next_point: position y for end point
+    :return:position x and y for truck, image truck
+    """
     delta_x = pos_x_next_point - pos_x_point
     delta_y = pos_y_next_point - pos_y_point
     if delta_x == 0:
