@@ -11,27 +11,56 @@ from project.math import truck_supply, truck_consumption, \
 
 
 def build_engine():
+    """
+    Creating an engine and session
+    :return: bind session
+    """
     engine = create_engine('sqlite:///C:/PycharmProjects/progectdigdes/project/database/Logistics.db')
     session = Session(bind=engine)
     return session
 
 
 def go_next_points(session):
+    """
+    Getting all agents
+    id_point -  starting point
+    id_next_point - end point
+    distance - distance from start to end
+    :param session:
+    :return:query_next_points
+    """
     query_next_points = session.query(NextPoint.id_point, NextPoint.id_next_point, NextPoint.distance).all()
     return query_next_points
 
 
 def go_points(session):
+    """
+    Getting all tuple from table Point
+    :param session:
+    :return: query_points
+    """
     query_points = session.query(Point.id_point, Point.name_point).all()
     return query_points
 
 
 def go_warehouse(session):
+    """
+    Getting all id Warehouse
+    :param session:
+    :return: query_warehouse
+    """
     query_warehouse = session.query(Warehouse.id_point).all()
     return query_warehouse
 
 
 def go_truck(session, weight_party):
+    """
+    Add new party in the table PartyCargo and
+    selection tonnage truck appropriate weight party
+    :param session:
+    :param weight_party:
+    :return:truck, id_truck_supply
+    """
     party = PartyCargo(weight_party=weight_party)
     session.add(party)
     id_truck_supply = session.query(Supply.num_truck_departure).all()
@@ -40,6 +69,16 @@ def go_truck(session, weight_party):
 
 
 def go_supply(session, point, weight, date, loading, num_truck):
+    """
+    Add supply appropriate this party and number truck
+    :param session:
+    :param point:
+    :param weight:
+    :param date: date departure from supply
+    :param loading:load time party in the truck
+    :param num_truck:
+    :return:query_points, num_party_matching
+    """
     check_truck = 0
     query_points = session.query(Point.id_point).filter(Point.name_point == point).all()
     id_loading_get = session.query(Loading).filter(Loading.loading_time == loading).all()
@@ -60,24 +99,54 @@ def go_supply(session, point, weight, date, loading, num_truck):
 
 
 def delete_all(session):
+    """
+    Delete all data from database before use program
+    :param session:
+    :return:nothing
+    """
     session.query(Supply).delete()
     session.query(Consumption).delete()
     session.query(Route).delete()
     session.query(PartyCargo).delete()
-    session.query(Loading).delete()
-    session.query(Unloading).delete()
+    query_warehouse = session.query(Warehouse.id_loading, Warehouse.id_unloading).all()
+    try:
+       for query in query_warehouse:
+            session.query(Loading).filter(Loading.id_loading != query.id_loading).delete()
+            session.query(Unloading).filter(Unloading.id_unloading != query.id_unloading).delete()
+    except Exception as e:
+        print(e)
+        raise
 
 
 def add_position(session, position, point):
+    """
+    Add position x and y preassigned point in the table Point
+    :param session:
+    :param position:
+    :param point:
+    :return:nothing
+    """
     session.query(Point).filter(Point.id_point == point.id_point).update({"pos_x_and_y": position})
 
 
 def get_pos(session, point):
+    """
+    Getting position x and y preassigned point
+    :param session:
+    :param point:
+    :return: pos_point - position x and y point
+    """
     pos_point = session.query(Point.pos_x_and_y).filter(Point.id_point == point.id_point)
     return pos_point
 
 
 def get_num_truck(session, num_party):
+    """
+    Getting number truck, truck supply departure, truck consumption arrival
+    :param session:
+    :param num_party:
+    :return: number truck, truck supply departure, truck consumption arrival
+    """
     num_truck = session.query(Truck.num_truck).all()
     truck_supply_departure = session.query(Supply.num_truck_departure).filter(Supply.num_party == num_party).all()
     truck_consumption_arrival = session.query(Consumption.num_truck_arrival).all()
@@ -85,6 +154,16 @@ def get_num_truck(session, num_party):
 
 
 def add_consumption(session, consumption, date, unloading, party, truck_arrival):
+    """
+    Add consumption in the table Consumption
+    :param session:
+    :param consumption:
+    :param date:
+    :param unloading:unload time party from truck
+    :param party:
+    :param truck_arrival:
+    :return:query_points - getting all points
+    """
     query_points = session.query(Point.id_point).filter(Point.name_point == consumption).all()
     id_unloading_get = session.query(Unloading).filter(Unloading.unloading_time == unloading).all()
     if not equality_unloading(id_unloading_get, unloading):
@@ -98,6 +177,15 @@ def add_consumption(session, consumption, date, unloading, party, truck_arrival)
 
 
 def add_route(session, lst_point, route, id_supply, empty_truck):
+    """
+    Add route for each party
+    :param session:
+    :param lst_point:
+    :param route:
+    :param id_supply:
+    :param empty_truck:
+    :return:nothing
+    """
     for lst in lst_point:
         next_point = session.query(NextPoint).filter(NextPoint.id_point == lst[0],
                                                      NextPoint.id_next_point == lst[1]).all()
@@ -111,38 +199,70 @@ def add_route(session, lst_point, route, id_supply, empty_truck):
 
 
 def get_routs(session):
+    """
+    Getting all route
+    :param session:
+    :return: tuple all routs
+    """
     routs = session.query(Route).all()
     return routs
 
 
 def get_agents(session, id_agent):
+    """
+    Getting id start point and id end point for given id agent
+    :param session:
+    :param id_agent:
+    :return: id start point and id end point
+    """
     agents = session.query(NextPoint.id_point, NextPoint.id_next_point).filter(NextPoint.id_agent == id_agent)
     return agents
 
 
 def get_supply_consumption(session, num_party):
+    """
+    Getting supply and consumption for given number party
+    :param session:
+    :param num_party:
+    :return: supply, consumption
+    """
     supply = session.query(Supply.id_point).filter(Supply.num_party == num_party)
     consumption = session.query(Consumption.id_point).filter(Supply.num_party == num_party)
     return supply, consumption
 
 
 def get_pos_point(session, id_point, id_next_point):
+    """
+    Getting position start and end point
+    :param session:
+    :param id_point:
+    :param id_next_point:
+    :return: pos_point, pos_next_point
+    """
     pos_point = session.query(Point.pos_x_and_y).filter(Point.id_point == id_point)
     pos_next_point = session.query(Point.pos_x_and_y).filter(Point.id_point == id_next_point)
     return pos_point, pos_next_point
 
 
-def get_loading_unloading(session, route):
+def get_data_route(session, route):
+    """
+    Getting loading and unloading time party for calculations cost
+    Getting all distance route for calculations cost
+    :param session:
+    :param route:
+    :return: loading and unloading time party, distance route
+    """
     loading = []
     unloading = []
     num_party_supply = session.query(Supply).join(Route, Route.num_party == Supply.num_party).\
-                                                 filter(Route.num_route == route).all()
+        filter(Route.num_route == route).all()
     num_party_consumption = session.query(Consumption).join(Route, Route.num_party == Consumption.num_party).\
-                                                            filter(Route.num_route == route).all()
+        filter(Route.num_route == route).all()
     for time_supply in num_party_supply:
         loading = session.query(Loading.loading_time).filter(Loading.id_loading == time_supply.id_loading)
     for time_consumption in num_party_consumption:
-        unloading = session.query(Unloading.unloading_time).filter(Unloading.id_unloading == time_consumption.id_unloading)
+        unloading = session.query(Unloading.unloading_time).\
+            filter(Unloading.id_unloading == time_consumption.id_unloading)
     distance_route = session.query(Route).filter(Route.num_route == route).all()
     return loading, unloading, distance_route
 
@@ -280,10 +400,10 @@ def session_get_pos_point(id_point, id_next_point):
     return pos_point, pos_next_point
 
 
-def session_get_loading_unloading(route):
+def session_get_data_route(route):
     session = build_engine()
     try:
-        loading, unloading, distance_route = get_loading_unloading(session, route)
+        loading, unloading, distance_route = get_data_route(session, route)
         session.commit()
     except:
         session.rollback()
