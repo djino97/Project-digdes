@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QLabel, QComboBox)
 from PyQt5 import QtCore
-from query import session_create, session_create2, session_add_consumption
+from query import session_create, session_create2, session_add_consumption, session_clear_field
 from PyQt5.QtWidgets import QPushButton, QDateTimeEdit, QHBoxLayout, QVBoxLayout
 from buildgraph import update_graphic
 from project.math import loading_party, unloading_party
@@ -49,7 +49,8 @@ class Example(QWidget):
 
         self.combo_route = QComboBox(self)
         self.combo_route.addItems(['1', '2'])
-        self.combo_route.move(80, 100)
+        self.combo_route.move(150, 120)
+        self.combo_route.resize(self.combo_route.sizeHint())
 
         """
         Data entry for supply
@@ -80,20 +81,57 @@ class Example(QWidget):
         layout.addWidget(self.combo_consumption)
         layout.addWidget(self.date_consumption)
 
+
     def initUI(self):
         btn_input = QPushButton('Ввести значения', self)
         btn_input.resize(btn_input.sizeHint())
         btn_input.move(420, 120)
         btn_input.clicked.connect(self.get_supply_consumption)
 
+        btn_delete_route = QPushButton('Удалить маршруты', self)
+        btn_delete_route.resize(btn_delete_route.sizeHint())
+        btn_delete_route.move(310, 120)
+        btn_delete_route.clicked.connect(self.delete_route)
+
+        lbl_route = QLabel("Маршрут:", self)
+        lbl_route.move(100, 110)
+
         lbl_supply = QLabel("Точка поставки", self)
-        lbl_supply.move(100, 25)
+        lbl_supply.move(100, 10)
+
         lbl_consupmtion = QLabel("Точка потребления", self)
-        lbl_consupmtion.move(450, 25)
+        lbl_consupmtion.move(450, 10)
+
+        lbl_supply_point = QLabel("Пункт", self)
+        lbl_supply_point.move(40, 35)
+
+        lbl_weight_party = QLabel("Вес партии", self)
+        lbl_weight_party.move(105, 35)
+
+        lbl_date_departure = QLabel("Дата отправления", self)
+        lbl_date_departure.move(170, 35)
+
+        lbl_consumption_point = QLabel("Пункт", self)
+        lbl_consumption_point.move(415, 35)
+
+        lbl_date_arrival = QLabel("Дата прибытия", self)
+        lbl_date_arrival.move(495, 35)
+
         self.setGeometry(300, 300, 600, 150)
         self.setWindowTitle('Выбрать параметры поставки груза')
 
+    def delete_route(self):
+        """
+        delete data before use program
+        :return: nothing
+        """
+        session_clear_field()
+
     def get_supply_consumption(self):
+        """
+        Data collection from forms
+        :return: nothing
+        """
         supply = self.combo_supply.currentText()
         consumption = self.combo_consumption.currentText()
         route = self.combo_route.currentText()

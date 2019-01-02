@@ -1,17 +1,30 @@
-
-
 def loading_party(weight):
+    """
+    Calculation of time for loading party
+    :param weight: weight party
+    :return: loading time
+    """
     loading = weight // 2
     return loading
 
 
 def unloading_party(weight):
+    """
+    Calculation of time for unloading party
+    :param weight: weight party
+    :return: unloading time
+    """
     unloading = weight // 4
     return unloading
 
 
 def truck_supply(truck, truck_work):
-
+    """
+    Calculating unoccupied(not busy) truck number
+    :param truck: all truck
+    :param truck_work: truck busy
+    :return:truck not busy
+    """
     for truck_1 in truck:
         if truck_work:
             for truck_2 in truck_work:
@@ -24,6 +37,12 @@ def truck_supply(truck, truck_work):
 
 
 def matching_supply_num_party(num_party, num_party_supply):
+    """
+    Check conformity supply and number party
+    :param num_party:
+    :param num_party_supply:
+    :return:conformity supply and number party
+    """
     for party in num_party:
         if num_party_supply:
             for party_supply in num_party_supply:
@@ -34,7 +53,15 @@ def matching_supply_num_party(num_party, num_party_supply):
 
 
 def truck_consumption(num_truck, num_truck_supply, travel_time, num_truck_consumption):
-
+    """
+    If the difference between the date of departure
+    and the arrival is more than 1 day, then calculating unoccupied(not busy) truck number
+    :param num_truck: all number truck
+    :param num_truck_supply: all number truck supply
+    :param travel_time:difference between the date of departure and the arrival
+    :param num_truck_consumption: all number truck consumption
+    :return: truck not busy
+    """
     for num_truck_b in num_truck:
         if travel_time > 1:
                 for num_truck_c in num_truck_consumption:
@@ -48,7 +75,9 @@ def truck_consumption(num_truck, num_truck_supply, travel_time, num_truck_consum
                 return num_truck_b.num_truck
 
         else:
-            return num_truck_b.num_truck
+            for num_truck_s in num_truck_supply:
+                num_truck = num_truck_s.num_truck_departure
+                return num_truck
 
 
 def equality_loading(id__get_loading, loading):

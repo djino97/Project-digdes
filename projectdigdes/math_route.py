@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QLabel, QComboBox, QPushButton)
 from PyQt5 import QtCore
-from database.query import session_get_loading_unloading
+from database.query import session_get_data_route
 
 
 class MathRoute(QWidget):
@@ -12,7 +12,6 @@ class MathRoute(QWidget):
         self.combo_route.addItems(['1', '2'])
         self.combo_route.move(180, 25)
         self.initUI()
-
 
     def initUI(self):
         lbl_route = QLabel("Выбрать маршрут", self)
@@ -33,7 +32,7 @@ class MathRoute(QWidget):
 
 
 def math_route(route):
-        loading, unloading, distance_route = session_get_loading_unloading(route)
+        loading, unloading, distance_route = session_get_data_route(route)
         coast_distance = 0
         for load in loading:
             for unload in unloading:
