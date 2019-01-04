@@ -2,7 +2,7 @@
 Query module is designed to retrieve data from the database using queries to it.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_
 from models import (NextPoint, Point, Supply, Warehouse,
                     Truck, PartyCargo, Consumption, Route, Loading, Unloading)
 from sqlalchemy.orm import Session
@@ -15,7 +15,8 @@ def build_engine():
     Creating an engine and session
     :return: bind session
     """
-    engine = create_engine('sqlite:///C:/PycharmProjects/progectdigdes/project/database/Logistics.db')
+    engine = create_engine('sqlite:///C:/PycharmProjects/progectdigdes/project/database/Logistics.db',
+                           connect_args={'check_same_thread': False}, echo=True)
     session = Session(bind=engine)
     return session
 
@@ -109,14 +110,9 @@ def delete_all(session):
     session.query(Route).delete()
     session.query(PartyCargo).delete()
     query_warehouse = session.query(Warehouse.id_loading, Warehouse.id_unloading).all()
-    try:
-       for query in query_warehouse:
-            session.query(Loading).filter(Loading.id_loading != query.id_loading).delete()
-            session.query(Unloading).filter(Unloading.id_unloading != query.id_unloading).delete()
-    except Exception as e:
-        print(e)
-        raise
-
+    for query in query_warehouse:
+        session.query(Loading).filter(Loading.id_loading != query.id_loading).delete()
+        session.query(Unloading).filter(Unloading.id_unloading != query.id_unloading).delete()
 
 def add_position(session, position, point):
     """
@@ -227,7 +223,7 @@ def get_supply_consumption(session, num_party):
     :return: supply, consumption
     """
     supply = session.query(Supply.id_point).filter(Supply.num_party == num_party)
-    consumption = session.query(Consumption.id_point).filter(Supply.num_party == num_party)
+    consumption = session.query(Consumption.id_point).filter(Consumption.num_party == num_party)
     return supply, consumption
 
 
@@ -265,6 +261,12 @@ def get_data_route(session, route):
             filter(Unloading.id_unloading == time_consumption.id_unloading)
     distance_route = session.query(Route).filter(Route.num_route == route).all()
     return loading, unloading, distance_route
+
+
+def get_name_point(session, supply, consumption):
+    name_point = session.query(Point.name_point).\
+        filter(or_(Point.id_point == supply, Point.id_point == consumption)).all()
+    return name_point
 
 
 def session_clear_field():
@@ -381,12 +383,12 @@ def session_get_agents(id_agent):
 def get_id_supply_consumption(num_party):
     session = build_engine()
     try:
-        supply_consumption = get_supply_consumption(session, num_party)
+        supply, consumption = get_supply_consumption(session, num_party)
         session.commit()
     except:
         session.rollback()
         raise
-    return supply_consumption
+    return supply, consumption
 
 
 def session_get_pos_point(id_point, id_next_point):
@@ -410,3 +412,23 @@ def session_get_data_route(route):
         raise
     return loading, unloading, distance_route
 
+
+def session_get_name_point(supply, consumption):
+    session = build_engine()
+    try:
+        name_point = get_name_point(session, supply, consumption)
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return name_point
+
+
+def session_getting_route():
+    session = build_engine()
+    try:
+        route = session.query(Route).all()
+    except:
+        session.rollback()
+        raise
+    return route, session
