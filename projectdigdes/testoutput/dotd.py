@@ -3,8 +3,9 @@
 # @date 07/07/2016
 
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (QToolTip, QPushButton)
+from PyQt5.QtWidgets import (QToolTip, QPushButton, QLabel)
 from PyQt5.QtGui import QFont
+from PyQt5 import QtCore
 from interface import Example
 import os
 import sys
@@ -12,6 +13,7 @@ from buildgraph import get_route, get__points, \
     get_pos_agent, math_position, make_dot, lst_optimal, update_graph, put_truck, update_point_graph
 from project.dijkstra import dijkstra
 from project.math_route import MathRoute
+from search_route import list_routs
 
 # Read a section in an .ini file and return a dictionnary
 #  @param s_ini_file Path to the .ini file to read
@@ -57,6 +59,10 @@ class MyLabel(QtWidgets.QLabel):
         self. point = []
         self.all_route = []
         self.count_route = 0
+        self.search_route = True
+
+        self.label_route = QLabel("Mаршруты:", self)
+        self.label_route.move(280, 0)
         
 # Daemon that run the GraphViz dot tool and display the image in a QLabel window
     def daemon(self):
@@ -65,13 +71,19 @@ class MyLabel(QtWidgets.QLabel):
         import datetime
 
         dot = "pydot.dot"
+
         QToolTip.setFont(QFont('SansSerif', 10))
         btn = QPushButton('Выбрать маршрут', self)
         btn.resize(btn.sizeHint())
         btn.move(0, 0)
         btn.clicked.connect(self.open_win)
-        if self.step == True:
+
+        if self.step is True:
             self.step_date()
+
+        if self.search_route is True:
+            self.update_route()
+            self.search_route = False
         btn_step = QPushButton('Шаг', self)
         btn_step.resize(btn_step.sizeHint())
         btn_step.move(100, 0)
@@ -94,9 +106,15 @@ class MyLabel(QtWidgets.QLabel):
             self.show()
             self.mTime = os.path.getmtime(dot)
 
+    def update_route(self):
+        str_route = list_routs()
+        self.label_route.setText(str_route)
+        self.label_route.adjustSize()
+
     def open_win(self):
         if not self.secondWin:
             self.secondWin = Example(self)
+            self.secondWin.trigger.connect(self.update_route)
         self.secondWin.show()
 
     def message_box(self):
