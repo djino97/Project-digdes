@@ -43,9 +43,10 @@ def parsing_tuple():
 
 
 class Example(QWidget):
+    trigger = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent, QtCore.Qt.Window)
-        self.initUI()
 
         self.combo_route = QComboBox(self)
         self.combo_route.addItems(['1', '2'])
@@ -81,6 +82,7 @@ class Example(QWidget):
         layout.addWidget(self.combo_consumption)
         layout.addWidget(self.date_consumption)
 
+        self.initUI()
 
     def initUI(self):
         btn_input = QPushButton('Ввести значения', self)
@@ -94,7 +96,8 @@ class Example(QWidget):
         btn_delete_route.clicked.connect(self.delete_route)
 
         lbl_route = QLabel("Маршрут:", self)
-        lbl_route.move(100, 110)
+        lbl_route.resize(lbl_route.sizeHint())
+        lbl_route.move(100, 120)
 
         lbl_supply = QLabel("Точка поставки", self)
         lbl_supply.move(100, 10)
@@ -126,6 +129,7 @@ class Example(QWidget):
         :return: nothing
         """
         session_clear_field()
+        self.trigger.emit()
 
     def get_supply_consumption(self):
         """
@@ -151,6 +155,7 @@ class Example(QWidget):
         id_consumption,  truck_arrival = session_add_consumption(consumption=consumption, date=date_arrival, unloading=unloading,
                                                                  party=num_party, travel_time=travel_time.days)
         update_graphic(id_supply, id_consumption, route, empty_truck)
+        self.trigger.emit()
 
 
 
