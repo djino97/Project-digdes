@@ -133,9 +133,9 @@ class MyLabel(QtWidgets.QLabel):
         if self.step is False:
             self.all_route = get_route()
             self.step = True
+            self.all_route = self.all_route[self.count_route:]
             self.count_route = self.count_route + 1
             for route in self.all_route:
-                if self.count_route == route.num_route:
                     agent_points, self.supply, self.consumption, self.next_point, self.point = get__points(route)
                     for agent in agent_points:
                         self.pos_x_point, self.pos_y_point, self.pos_x_next_point, \
