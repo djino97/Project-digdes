@@ -84,6 +84,7 @@ class MyLabel(QtWidgets.QLabel):
         if self.search_route is True:
             self.update_route()
             self.search_route = False
+
         btn_step = QPushButton('Шаг', self)
         btn_step.resize(btn_step.sizeHint())
         btn_step.move(100, 0)
@@ -142,6 +143,8 @@ class MyLabel(QtWidgets.QLabel):
                          self.pos_y_next_point = get_pos_agent(agent)
                         return
             else:
+                self.step = False
+                self.count_route = 0
                 return 
         else:
             # truck will not reach the end point, then coordinate calculations are performed
