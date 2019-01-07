@@ -2,9 +2,7 @@
 Query module is designed to retrieve data from the database using queries to it.
 """
 
-from sqlalchemy import create_engine, or_
-from models import (NextPoint, Point, Supply, Warehouse,
-                    Truck, PartyCargo, Consumption, Route, Loading, Unloading)
+from models import *
 from sqlalchemy.orm import Session
 from project.math import truck_supply, truck_consumption, \
     matching_supply_num_party, equality_loading, equality_unloading
@@ -16,7 +14,7 @@ def build_engine():
     :return: bind session
     """
     engine = create_engine('sqlite:///C:/PycharmProjects/progectdigdes/project/database/Logistics.db',
-                           connect_args={'check_same_thread': False}, echo=True)
+                           connect_args={'check_same_thread': False})
     session = Session(bind=engine)
     return session
 
@@ -107,12 +105,12 @@ def delete_all(session):
     """
     session.query(Supply).delete()
     session.query(Consumption).delete()
+    session.query(WarehouseParty).delete()
     session.query(Route).delete()
     session.query(PartyCargo).delete()
-    query_warehouse = session.query(Warehouse.id_loading, Warehouse.id_unloading).all()
-    for query in query_warehouse:
-        session.query(Loading).filter(Loading.id_loading != query.id_loading).delete()
-        session.query(Unloading).filter(Unloading.id_unloading != query.id_unloading).delete()
+    session.query(Loading).delete()
+    session.query(Unloading).delete()
+
 
 def add_position(session, position, point):
     """
@@ -428,7 +426,41 @@ def session_getting_route():
     session = build_engine()
     try:
         route = session.query(Route).all()
+        session.commit()
     except:
         session.rollback()
         raise
     return route, session
+
+
+def session_add_warehouse(warehouse):
+    session = build_engine()
+    try:
+        id_point = session.query(Point.id_point).filter(Point.name_point == warehouse)
+        for point in id_point:
+            session.add(Warehouse(id_point=point.id_point))
+        session.commit()
+    except:
+        session.rollback()
+        raise
+
+
+def session_get_warehouse():
+    session = build_engine()
+    try:
+        warehouse = session.query(Point).join(Warehouse, Point.id_point == Warehouse.id_point).all()
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return warehouse
+
+
+def session_delete_warehouse():
+    session = build_engine()
+    try:
+        session.query(Warehouse).delete()
+        session.commit()
+    except:
+        session.rollback()
+        raise

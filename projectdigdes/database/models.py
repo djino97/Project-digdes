@@ -55,12 +55,28 @@ class Warehouse(Base):
 
     __tablename__ = 'Warehouse'
     id_point = Column(Integer, ForeignKey('Point.id_point'), primary_key=True)
-    id_loading = Column(Integer, ForeignKey('Loading.id_loading'), nullable=False)
-    id_unloading = Column(Integer, ForeignKey('Unloading.id_unloading'), nullable=False)
-
     id_point_warehouse = relationship("Point", backref="id_point_warehouse")
-    id_loading_warehouse = relationship("Loading", backref="id_loading_warehouse")
-    id_unloading_warehouse = relationship("Unloading", backref="id_unloading_warehouse")
+
+
+class WarehouseParty(Base):
+    """
+    If the route passes through the warehouse, then the data for the warehouse is entered.
+    """
+
+    __tablename__ = 'WarehouseParty'
+    id_point = Column(Integer, ForeignKey('Warehouse.id_point'))
+    num_party = Column(Integer, ForeignKey('PartyCargo.num_party'))
+    data_arrival = Column(DATETIME, nullable=False)
+    data_departure = Column(DATETIME, nullable=False)
+    id_loading = Column(Integer, ForeignKey('Loading.id_loading'))
+    id_unloading = Column(Integer, ForeignKey('Unloading.id_unloading'))
+
+    id_warehouse = relationship("Warehouse", backref="id_warehouse")
+    id_party = relationship("PartyCargo", backref="id_party")
+    loading = relationship("Loading", backref="loading")
+    unloading = relationship("Unloading", backref="unloading")
+
+    __table_args__ = (PrimaryKeyConstraint(id_point, num_party),)
 
 
 class Consumption(Base):
@@ -115,6 +131,8 @@ class Point(Base):
     id_point = Column(Integer, primary_key=True)
     name_point = Column(String(15), nullable=False)
     pos_x_and_y = Column(String(10), nullable=True)
+
+    __table_args__ = ({'sqlite_autoincrement': True})
 
 
 class NextPoint(Base):
