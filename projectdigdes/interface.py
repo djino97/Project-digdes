@@ -1,7 +1,10 @@
 from PyQt5.QtWidgets import (QWidget, QLabel, QComboBox)
 from PyQt5 import QtCore
-from query import session_create, session_create2, session_add_consumption, session_clear_field
-from PyQt5.QtWidgets import QPushButton, QDateTimeEdit, QHBoxLayout, QVBoxLayout
+from query import session_create, session_create2, \
+    session_add_consumption, session_clear_field, \
+    session_add_warehouse, session_get_warehouse, session_delete_warehouse
+from PyQt5.QtWidgets import QPushButton, QDateTimeEdit,\
+    QHBoxLayout, QVBoxLayout, QFrame
 from buildgraph import update_graphic
 from project.math import loading_party, unloading_party
 import datetime
@@ -48,9 +51,29 @@ class Example(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent, QtCore.Qt.Window)
 
+        self.top_warehouse = QFrame(self)
+        self.top_warehouse.setFrameShape(QFrame.StyledPanel)
+        self.top_warehouse.resize(584, 75)
+        self.top_warehouse.move(8, 10)
+
+        self.top_route = QFrame(self)
+        self.top_route.setFrameShape(QFrame.StyledPanel)
+        self.top_route.resize(584, 170)
+        self.top_route.move(8, 88)
+
+        self.top_supply = QFrame(self)
+        self.top_supply.setFrameShape(QFrame.StyledPanel)
+        self.top_supply.resize(285, 110)
+        self.top_supply.move(10, 92)
+
+        self.top_consumption = QFrame(self)
+        self.top_consumption.setFrameShape(QFrame.StyledPanel)
+        self.top_consumption.resize(286, 110)
+        self.top_consumption.move(304, 92)
+
         self.combo_route = QComboBox(self)
         self.combo_route.addItems(['1', '2'])
-        self.combo_route.move(150, 120)
+        self.combo_route.move(150, 220)
         self.combo_route.resize(self.combo_route.sizeHint())
 
         """
@@ -73,6 +96,17 @@ class Example(QWidget):
         layout.addStretch(1)
 
         """
+        Data entry for warehouse
+        """
+        self.combo_warehouse = QComboBox(self)
+        self.combo_warehouse.addItems(pars)
+        self.combo_warehouse.move(150, 30)
+        self.combo_warehouse.resize(self.combo_warehouse.sizeHint())
+
+        self.lbl_warehouse = QLabel("Склады", self)
+        self.lbl_warehouse.move(300, 30)
+
+        """
         Data entry for consumption
         """
         self.combo_consumption = QComboBox(self)
@@ -82,46 +116,75 @@ class Example(QWidget):
         layout.addWidget(self.combo_consumption)
         layout.addWidget(self.date_consumption)
 
+        self.check_warehouse()
         self.initUI()
 
     def initUI(self):
         btn_input = QPushButton('Ввести значения', self)
         btn_input.resize(btn_input.sizeHint())
-        btn_input.move(420, 120)
+        btn_input.move(420, 220)
         btn_input.clicked.connect(self.get_supply_consumption)
 
         btn_delete_route = QPushButton('Удалить маршруты', self)
         btn_delete_route.resize(btn_delete_route.sizeHint())
-        btn_delete_route.move(310, 120)
+        btn_delete_route.move(310, 220)
         btn_delete_route.clicked.connect(self.delete_route)
+
+        btn_delete_warehouse = QPushButton('Удалить склады', self)
+        btn_delete_warehouse.resize(btn_delete_warehouse.sizeHint())
+        btn_delete_warehouse.move(490, 55)
+        btn_delete_warehouse.clicked.connect(self.delete_warehouse)
+
+        btn_add_warehouse = QPushButton('Добавить склад', self)
+        btn_add_warehouse.resize(btn_delete_route.sizeHint())
+        btn_add_warehouse.move(40, 30)
+        btn_add_warehouse.clicked.connect(self.update_warehouse)
 
         lbl_route = QLabel("Маршрут:", self)
         lbl_route.resize(lbl_route.sizeHint())
-        lbl_route.move(100, 120)
+        lbl_route.move(100, 220)
 
         lbl_supply = QLabel("Точка поставки", self)
-        lbl_supply.move(100, 10)
+        lbl_supply.resize((lbl_supply.sizeHint()))
+        lbl_supply.move(90, 93)
 
         lbl_consupmtion = QLabel("Точка потребления", self)
-        lbl_consupmtion.move(450, 10)
+        lbl_consupmtion.resize(lbl_consupmtion.sizeHint())
+        lbl_consupmtion.move(450, 93)
 
         lbl_supply_point = QLabel("Пункт", self)
-        lbl_supply_point.move(40, 35)
+        lbl_supply_point.resize(lbl_supply_point.sizeHint())
+        lbl_supply_point.move(25, 115)
 
         lbl_weight_party = QLabel("Вес партии", self)
-        lbl_weight_party.move(105, 35)
+        lbl_weight_party.resize(lbl_weight_party.sizeHint())
+        lbl_weight_party.move(70, 115)
 
         lbl_date_departure = QLabel("Дата отправления", self)
-        lbl_date_departure.move(170, 35)
+        lbl_date_departure.resize(lbl_date_departure.sizeHint())
+        lbl_date_departure.move(145, 115)
 
         lbl_consumption_point = QLabel("Пункт", self)
-        lbl_consumption_point.move(415, 35)
+        lbl_consumption_point.resize(lbl_consumption_point.sizeHint())
+        lbl_consumption_point.move(420, 115)
 
         lbl_date_arrival = QLabel("Дата прибытия", self)
-        lbl_date_arrival.move(495, 35)
+        lbl_date_arrival.resize(lbl_date_arrival.sizeHint())
+        lbl_date_arrival.move(490, 115)
 
-        self.setGeometry(300, 300, 600, 150)
+        self.setGeometry(300, 300, 600, 300)
         self.setWindowTitle('Выбрать параметры поставки груза')
+
+    def delete_warehouse(self):
+        session_delete_warehouse()
+        self.check_warehouse()
+        pars = parsing_tuple()
+        self.combo_warehouse.clear()
+        self.combo_supply.clear()
+        self.combo_consumption.clear()
+        self.combo_warehouse.addItems(pars)
+        self.combo_supply.addItems(pars)
+        self.combo_consumption.addItems(pars)
 
     def delete_route(self):
         """
@@ -130,6 +193,33 @@ class Example(QWidget):
         """
         session_clear_field()
         self.trigger.emit()
+        pars = parsing_tuple()
+        self.combo_warehouse.clear()
+        self.combo_supply.clear()
+        self.combo_consumption.clear()
+        self.combo_warehouse.addItems(pars)
+        self.combo_supply.addItems(pars)
+        self.combo_consumption.addItems(pars)
+
+    def check_warehouse(self):
+        str_warehouse = 'Склады:'
+        name_warehouse = session_get_warehouse()
+        for warehouse in name_warehouse:
+            str_warehouse = str_warehouse + warehouse.name_point + ','
+        self.lbl_warehouse.setText(str_warehouse)
+        self.lbl_warehouse.adjustSize()
+
+    def update_warehouse(self):
+        warehouse = self.combo_warehouse.currentText()
+        session_add_warehouse(warehouse)
+        self.check_warehouse()
+        pars = parsing_tuple()
+        self.combo_warehouse.clear()
+        self.combo_supply.clear()
+        self.combo_consumption.clear()
+        self.combo_warehouse.addItems(pars)
+        self.combo_supply.addItems(pars)
+        self.combo_consumption.addItems(pars)
 
     def get_supply_consumption(self):
         """

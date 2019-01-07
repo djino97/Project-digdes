@@ -50,23 +50,26 @@ def parsing_points(state, dot):
         dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos)
 
 
-def update_point_graph(state, dot):
+def update_point_graph(state, dot, **kwargs):
     """
-        The node()-method takes a "name" identifier as first argument and an optional "label".
-        :param state:
-        :param dot:
-        :return:nothing
-        """
+    The node()-method takes a "name" identifier as first argument and an optional "label".
+    :param state:
+    :param dot:
+    :param kwargs:
+    :return: nothing
+    """
     truck = True
     for point in state:
         position_point = session_get_pos(point)
         for pos in position_point:
             dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos.pos_x_and_y)
             # If this vertex is supply then the image of the truck is put in these coordinates
-            if truck:
-                dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
-                         pos=pos.pos_x_and_y, shape='plaintext', style='')
-                truck = False
+            if 'lst_pars' in kwargs:
+                for lst in kwargs['lst_pars']:
+                    if truck and lst[0] == point.id_point:
+                        dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
+                                 pos=pos.pos_x_and_y, shape='plaintext', style='')
+                        truck = False
 
 
 def put_truck(dot, pos_x_image, pos_y_image, img_truck):
@@ -162,7 +165,7 @@ def update_graphic(id_supply, id_consumption, route, empty_truck):
     dot_update = make_dot()
     optimal = dijkstra(next_point, id_supply, id_consumption)
     lst_pars = lst_optimal(optimal)
-    update_point_graph(point, dot_update)
+    update_point_graph(point, dot_update, lst_pars=lst_pars)
     update_graph(lst_pars, next_point, dot_update)
     walk = os.getcwd()
     write = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
@@ -229,23 +232,23 @@ def math_position(pos_x_point, pos_y_point, pos_x_next_point, pos_y_next_point):
     delta_y = pos_y_next_point - pos_y_point
     if delta_x == 0:
         if delta_y < 0:
-            pos_y_point = pos_y_point - 1 * 0.05
+            pos_y_point = pos_y_point - 1 * 0.5
             img_truck = 'truck_left.png'
         else:
-            pos_y_point = pos_y_point + 1 * 0.05
+            pos_y_point = pos_y_point + 1 * 0.5
             img_truck = 'truck_right.png'
         return pos_x_point, pos_y_point, img_truck
     elif delta_y == 0:
         if delta_x < 0:
-            pos_x_point = pos_x_point - 1 * 0.05
+            pos_x_point = pos_x_point - 1 * 0.5
             img_truck = 'truck_left.png'
         else:
-            pos_x_point = pos_x_point + 1 * 0.05
+            pos_x_point = pos_x_point + 1 * 0.5
             img_truck = 'truck_right.png'
         return pos_x_point, pos_y_point, img_truck
 
     if abs(delta_x) > abs(delta_y):
-        step_truck_x = (delta_x / delta_y) * 0.05
+        step_truck_x = (delta_x / delta_y) * 0.5
         if delta_x < 0:
             pos_x_point = pos_x_point - abs(step_truck_x)
             img_truck = 'truck_left.png'
@@ -253,16 +256,16 @@ def math_position(pos_x_point, pos_y_point, pos_x_next_point, pos_y_next_point):
             pos_x_point = pos_x_point + abs(step_truck_x)
             img_truck = 'truck_right.png'
         if delta_y < 0:
-            pos_y_point = pos_y_point - 1 * 0.05
+            pos_y_point = pos_y_point - 1 * 0.5
         else:
-            pos_y_point = pos_y_point + 1 * 0.05
+            pos_y_point = pos_y_point + 1 * 0.5
     else:
-        step_truck_y = (delta_y / delta_x) * 0.05
+        step_truck_y = (delta_y / delta_x) * 0.5
         if delta_x < 0:
-            pos_x_point = pos_x_point - 1 * 0.05
+            pos_x_point = pos_x_point - 1 * 0.5
             img_truck = 'truck_left.png'
         else:
-            pos_x_point = pos_x_point + 1 * 0.05
+            pos_x_point = pos_x_point + 1 * 0.5
             img_truck = 'truck_right.png'
         if delta_y < 0:
             pos_y_point = pos_y_point - abs(step_truck_y)

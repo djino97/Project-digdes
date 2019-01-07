@@ -15,16 +15,14 @@ def list_routs():
         if route.num_party != check:
             supply, consumption = get_id_supply_consumption(route.num_party)
             check = route.num_party
-        else:
-            return str_route
-        point = []
-        for s in supply:
-            for c in consumption:
-                point = session_get_name_point(s.id_point, c.id_point)
-        lst_point = []
-        for name_point in point:
-            lst_point.append(name_point.name_point)
-        str_route = str_route + '№{0}:{1} - {2};\t'.format(route.num_route, lst_point[0], lst_point[1])
+            point = []
+            for s in supply:
+                for c in consumption:
+                    point = session_get_name_point(s.id_point, c.id_point)
+            lst_point = []
+            for name_point in point:
+                lst_point.append(name_point.name_point)
+            str_route = str_route + '№{0}:{1} - {2};\t'.format(route.num_route, lst_point[0], lst_point[1])
     session.close_all()
     return str_route
 
