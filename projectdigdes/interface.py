@@ -2,12 +2,16 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QComboBox)
 from PyQt5 import QtCore
 from query import session_create, session_create2, \
     session_add_consumption, session_clear_field, \
-    session_add_warehouse, session_get_warehouse, session_delete_warehouse
+    session_add_warehouse, session_get_warehouse, \
+    session_delete_warehouse, session_add_warehouse_party,\
+    session_get_next_point, session_add_route, session_getting_route
 from PyQt5.QtWidgets import QPushButton, QDateTimeEdit,\
     QHBoxLayout, QVBoxLayout, QFrame
-from buildgraph import update_graphic
+from buildgraph import update_graphic, search_route_warehouse,\
+    lst_optimal, main
 from project.math import loading_party, unloading_party
 import datetime
+from dijkstra import parsing, dijkstra
 
 
 def point(id_point, warehouse):
@@ -72,7 +76,7 @@ class Example(QWidget):
         self.top_consumption.move(304, 92)
 
         self.combo_route = QComboBox(self)
-        self.combo_route.addItems(['1', '2'])
+        self.combo_route.addItems(['1', '2', '3'])
         self.combo_route.move(150, 220)
         self.combo_route.resize(self.combo_route.sizeHint())
 
@@ -116,6 +120,7 @@ class Example(QWidget):
         layout.addWidget(self.combo_consumption)
         layout.addWidget(self.date_consumption)
 
+        self.check_route()
         self.check_warehouse()
         self.initUI()
 
@@ -175,6 +180,15 @@ class Example(QWidget):
         self.setGeometry(300, 300, 600, 300)
         self.setWindowTitle('Выбрать параметры поставки груза')
 
+    def check_route(self):
+        routs, session = session_getting_route()
+        before_route = 0
+        for route in routs:
+            if before_route != route.num_route:
+                self.combo_route.removeItem(route.num_route - 1)
+                before_route = route.num_route
+        session.close()
+
     def delete_warehouse(self):
         session_delete_warehouse()
         self.check_warehouse()
@@ -197,9 +211,13 @@ class Example(QWidget):
         self.combo_warehouse.clear()
         self.combo_supply.clear()
         self.combo_consumption.clear()
+        self.combo_route.clear()
         self.combo_warehouse.addItems(pars)
         self.combo_supply.addItems(pars)
         self.combo_consumption.addItems(pars)
+        main()
+        self.combo_route.addItems(['1', '2', '3'])
+
 
     def check_warehouse(self):
         str_warehouse = 'Склады:'
@@ -239,13 +257,24 @@ class Example(QWidget):
                                            int(self.date_supply.dateTime().toString("hh")))
         weight = int(self.combo_weight_party.currentText())
         loading = loading_party(weight)
-        id_supply, num_party, empty_truck = session_create2(weight=weight, supply=supply, date=date_departure, loading=loading)
+        id_supply, num_party, empty_truck = session_create2(weight=weight, supply=supply, date=date_departure,
+                                                            loading=loading)
         unloading = unloading_party(weight)
         travel_time = date_arrival - date_departure
-        id_consumption,  truck_arrival = session_add_consumption(consumption=consumption, date=date_arrival, unloading=unloading,
-                                                                 party=num_party, travel_time=travel_time.days)
-        update_graphic(id_supply, id_consumption, route, empty_truck)
+        id_consumption = session_add_consumption(consumption=consumption, date=date_arrival,
+                                                 unloading=unloading, party=num_party,
+                                                 travel_time=travel_time.days, weight=weight)
+        agent = session_get_next_point()
+        parsing(agent)
+        if travel_time.days > 1:
+            optimal_route, warehouse_point = search_route_warehouse(id_supply, id_consumption)
+            session_add_warehouse_party(optimal_route, warehouse_point, num_party, loading, unloading)
+        else:
+            optimal_route = dijkstra(id_supply, id_consumption)
+        lst_pars = lst_optimal(optimal_route)
+        session_add_route(lst_pars, route, id_supply, empty_truck)
+        update_graphic()
         self.trigger.emit()
-
+        self.check_route()
 
 

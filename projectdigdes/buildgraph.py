@@ -4,13 +4,11 @@ Buildgraph module is intended for graph construction.
 
 from graphviz import Digraph
 import os
-import subprocess
 from database.query import session_create, \
-    session_clear_field, session_add_pos, \
-    session_get_pos, session_add_route, session_get_routs,\
-    session_get_agents, get_id_supply_consumption, session_get_pos_point
-from dijkstra import dijkstra
-import random
+    session_clear_field, session_get_pos, session_get_routs,\
+    session_get_agents, get_id_supply_consumption, \
+    session_get_pos_point, session_getting_warehouse, session_route, session_get_date
+from dijkstra import dijkstra_warehouse
 
 
 def make_dot():
@@ -36,40 +34,39 @@ def parsing_points(state, dot):
     :return:nothing
     """
     for point in state:
-        pos_x = 0
-        n_x = 0
-        n_y = 0
-        pos_y = 0
-        while pos_x == n_x and pos_y == n_y:
-            n_x = random.randint(0, 14)
-            n_y = random.randint(0, 10)
-        pos_x = n_x
-        pos_y = n_y
-        pos = '{0},{1}!'.format(pos_x, pos_y)
-        session_add_pos(pos, point)
-        dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos)
+        positions, supply_truck = session_get_pos(point)
+        for pos in positions:
+            dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos.pos_x_and_y)
 
 
-def update_point_graph(state, dot, **kwargs):
+def update_point_graph(state, dot, truck, **kwargs):
     """
     The node()-method takes a "name" identifier as first argument and an optional "label".
     :param state:
     :param dot:
-    :param kwargs:
+    :param truck:
     :return: nothing
     """
-    truck = True
     for point in state:
-        position_point = session_get_pos(point)
+        position_point, supply_truck = session_get_pos(point)
         for pos in position_point:
             dot.node('%s' % point.id_point, label='%s' % point.name_point, pos=pos.pos_x_and_y)
             # If this vertex is supply then the image of the truck is put in these coordinates
-            if 'lst_pars' in kwargs:
-                for lst in kwargs['lst_pars']:
-                    if truck and lst[0] == point.id_point:
-                        dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
+            if truck:
+                for s_truck in supply_truck:
+                    if s_truck.id_point == point.id_point:
+                        dot.node('{}'.format(point.id_point + 10),
+                                 label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
                                  pos=pos.pos_x_and_y, shape='plaintext', style='')
-                        truck = False
+            else:
+                if point.id_point == 1 and kwargs['ride_truck']:
+                    for supply in kwargs['supply']:
+                        for s_truck in supply_truck:
+                            if supply.id_point != s_truck.id_point:
+                                dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="{0}"/></TD></TR></TABLE>>'
+                                         .format(kwargs['img_truck']),
+                                         pos='{0},{1}!'.format(kwargs['ride_truck'][0], kwargs['ride_truck'][1]),
+                                         shape='plaintext', style='')
 
 
 def put_truck(dot, pos_x_image, pos_y_image, img_truck):
@@ -81,14 +78,9 @@ def put_truck(dot, pos_x_image, pos_y_image, img_truck):
     :param img_truck:left or right image truck
     :return: nothing
     """
-    if img_truck == 'truck_right':
-            dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_right.png"/></TD></TR></TABLE>>',
-                     pos='{0},{1}!'.format(pos_x_image, pos_y_image),
-                     shape='plaintext', style='')
-    else:
-        dot.node(' ', label='<<TABLE><TR><TD><IMG SRC="truck_left.png"/></TD></TR></TABLE>>',
-                 pos='{0},{1}!'.format(pos_x_image, pos_y_image),
-                 shape='plaintext', style='')
+    dot.node('100', label='<<TABLE><TR><TD><IMG SRC="{0}"/></TD></TR></TABLE>>'.format(img_truck),
+             pos='{0},{1}!'.format(pos_x_image, pos_y_image),
+             shape='plaintext', style='')
 
 
 def parsing_next_point(state, dot):
@@ -112,26 +104,26 @@ def lst_optimal(lst):
     return [lst[i:i + 2] for i in range(0, len(lst) - 1)]
 
 
-def update_graph(lst_pars, point, dot_update):
+def update_graph(point, dot_update):
     """
     Update edges and route designation red color
-    :param lst_pars:
     :param point:
     :param dot_update:
     :return:nothing
     """
+    lst_pars = session_route()
     restore = lst_pars
     for next_point in point:
-            for optimal_point in lst_pars:
-                if optimal_point[0] == next_point.id_point and optimal_point[1] == next_point.id_next_point:
-                    dot_update.edge('%s' % optimal_point[0], '%s' % optimal_point[1], label='%s' % next_point.distance,
-                                    color='red', penwidth='2.0', )
-                    break
-                lst_pars = lst_pars[1:]
-                if not lst_pars:
-                    dot_update.edge('%s' % next_point.id_point, '%s' % next_point.id_next_point,
-                                    label='%s' % next_point.distance)
-                    lst_pars = restore
+        for optimal_point in lst_pars:
+            if optimal_point[0] == next_point.id_point and optimal_point[1] == next_point.id_next_point:
+                dot_update.edge('%s' % optimal_point[0], '%s' % optimal_point[1], label='%s' % next_point.distance,
+                                color='red', penwidth='2.0', )
+                break
+            lst_pars = lst_pars[1:]
+            if not lst_pars:
+                dot_update.edge('%s' % next_point.id_point, '%s' % next_point.id_next_point,
+                                label='%s' % next_point.distance)
+                lst_pars = restore
     return
 
 
@@ -145,33 +137,31 @@ def main():
     next_point, point, warehouse = session_create()
     parsing_points(point, dot)
     parsing_next_point(next_point, dot)
-    f = open('testoutput/pydot.dot', 'w', encoding="UTF-8")
+    walk = os.getcwd()
+    f = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
     f.write(dot.source)
     f.close()
-    walk = os.getcwd()
-    subprocess.Popen("%s/testoutput/dotd.py" % walk, shell=True)
 
 
-def update_graphic(id_supply, id_consumption, route, empty_truck):
+def update_graphic():
     """
     Updating the graph when laying the route
-    :param id_supply: source point
-    :param id_consumption: target point
-    :param route:
-    :param empty_truck:
     :return: nothing
     """
     next_point, point, warehouse = session_create()
     dot_update = make_dot()
-    optimal = dijkstra(next_point, id_supply, id_consumption)
-    lst_pars = lst_optimal(optimal)
-    update_point_graph(point, dot_update, lst_pars=lst_pars)
-    update_graph(lst_pars, next_point, dot_update)
+    update_point_graph(point, dot_update, True)
+    update_graph(next_point, dot_update)
     walk = os.getcwd()
     write = open('%s/pydot.dot' % walk, 'w', encoding="UTF-8")
     write.write(dot_update.source)
     write.close()
-    session_add_route(lst_pars, route, id_supply, empty_truck)
+
+
+def search_route_warehouse(id_supply, id_consumption):
+    warehouse = session_getting_warehouse()
+    route, warehouse_point = dijkstra_warehouse(warehouse, id_supply, id_consumption)
+    return route, warehouse_point
 
 
 def position_par(point):
@@ -200,9 +190,22 @@ def position_par(point):
     return pos_x, pos_y
 
 
-def get_route():
-    all_route = session_get_routs()
+def get_route(date_supply, count_agent):
+    all_route = session_get_routs(date_supply, count_agent)
     return all_route
+
+
+def get_date_supply():
+    min_date_supply, max_date_consumption = session_get_date()
+    min_d = ''
+    min_date_count = 0
+    max_date_count = 0
+    for min_date in min_date_supply:
+        min_d = min_date[0]
+        min_date_count = min_date[0]
+    for max_date in max_date_consumption:
+        max_date_count = max_date[0]
+    return min_d, min_date_count, max_date_count
 
 
 def get__points(route):

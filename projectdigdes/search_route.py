@@ -24,5 +24,5 @@ def list_routs():
                 lst_point.append(name_point.name_point)
             str_route = str_route + '№{0}:{1} - {2};\t'.format(route.num_route, lst_point[0], lst_point[1])
     session.close_all()
-    return str_route
+    return str_route, check
 
