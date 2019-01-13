@@ -4,8 +4,8 @@ Query module is designed to retrieve data from the database using queries to it.
 
 from models import *
 from sqlalchemy.orm import Session
-from project.math import truck_supply, truck_consumption, \
-    matching_supply_num_party, equality_loading, equality_unloading
+from project.math import matching_supply_num_party, equality_loading,\
+    equality_unloading, search_date
 
 
 def build_engine():
@@ -62,9 +62,13 @@ def go_truck(session, weight_party):
     """
     party = PartyCargo(weight_party=weight_party)
     session.add(party)
-    id_truck_supply = session.query(Supply.num_truck_departure).all()
-    truck = session.query(Truck.num_truck).filter(Truck.tonnage >= weight_party).all()
-    return truck, id_truck_supply
+    empty_truck = session.query(Truck). \
+        outerjoin(Consumption, Truck.num_truck == Consumption.num_truck_arrival). \
+        outerjoin(Supply, Truck.num_truck == Supply.num_truck_departure). \
+        filter(and_(Consumption.num_truck_arrival == None, Supply.num_truck_departure == None,
+                    Truck.tonnage >= weight_party))
+    for truck in empty_truck:
+        return truck.num_truck
 
 
 def go_supply(session, point, weight, date, loading, num_truck):
@@ -78,7 +82,6 @@ def go_supply(session, point, weight, date, loading, num_truck):
     :param num_truck:
     :return:query_points, num_party_matching
     """
-    check_truck = 0
     query_points = session.query(Point.id_point).filter(Point.name_point == point).all()
     id_loading_get = session.query(Loading).filter(Loading.loading_time == loading).all()
     if not equality_loading(id_loading_get, loading):
@@ -89,11 +92,9 @@ def go_supply(session, point, weight, date, loading, num_truck):
     num_party_matching = matching_supply_num_party(num_party, num_party_supply)
     for loading in id_loading_get:
         for point in query_points:
-                if check_truck != num_truck:
-                    supply = Supply(id_point=point.id_point, num_party=num_party_matching, num_truck_departure=num_truck,
-                                    date_departure=date, id_loading=loading.id_loading)
-                    session.add(supply)
-                    check_truck = num_truck
+            supply = Supply(id_point=point.id_point, num_party=num_party_matching,
+                            num_truck_departure=num_truck, date_departure=date, id_loading=loading.id_loading)
+            session.add(supply)
     return query_points, num_party_matching
 
 
@@ -166,7 +167,7 @@ def add_consumption(session, consumption, date, unloading, party, truck_arrival)
     for unloading in id_unloading_get:
         for point in query_points:
                 session.add(Consumption(num_party=party, num_truck_arrival=truck_arrival,
-                                        id_point=point.id_point, date_supply=date, id_unloading=unloading.id_unloading))
+                                        id_point=point.id_point, date_arrival=date, id_unloading=unloading.id_unloading))
         return query_points
 
 
@@ -180,6 +181,7 @@ def add_route(session, lst_point, route, id_supply, empty_truck):
     :param empty_truck:
     :return:nothing
     """
+    count_point_route = 0
     for lst in lst_point:
         next_point = session.query(NextPoint).filter(NextPoint.id_point == lst[0],
                                                      NextPoint.id_next_point == lst[1]).all()
@@ -188,17 +190,35 @@ def add_route(session, lst_point, route, id_supply, empty_truck):
                 get_num_party = session.query(Supply.num_party).filter(Supply.id_point == supply.id_point,
                                                                        Supply.num_truck_departure == empty_truck)
                 for party in get_num_party:
+                    count_point_route += 1
                     session.add(Route(id_agent=agent.id_agent, distance=agent.distance, num_route=int(route),
-                                      num_party=party.num_party))
+                                      num_party=party.num_party, num_point_route=count_point_route))
 
 
-def get_routs(session):
+def get_routs(session, date_supply, count_agent):
     """
-    Getting all route
+    Getting route at number party
     :param session:
+    :param count_agent:
+    :param date_supply:
     :return: tuple all routs
     """
-    routs = session.query(Route).all()
+    num_party = session.query(Supply.num_party).filter(Supply.date_departure == date_supply)
+    lst = []
+    for party in num_party:
+        lst.append(party.num_party)
+    if count_agent != 1:
+        warehouse_party = []
+        warehouse = session.query(WarehouseParty.num_party).filter(WarehouseParty.date_departure == date_supply)
+        for w in warehouse:
+            warehouse_party.append(w.num_party)
+        if warehouse_party:
+            num_point_route = session.query(func.max(Route.num_point_route)).filter(Route.num_party.in_(warehouse_party))
+            routs = session.query(Route).filter(and_(Route.num_party.in_(warehouse_party), Route.num_point_route == num_point_route))
+        else:
+            routs = session.query(Route).filter(and_(Route.num_party.in_(lst), Route.num_point_route == count_agent))
+    else:
+        routs = session.query(Route).filter(and_(Route.num_party.in_(lst), Route.num_point_route == count_agent))
     return routs
 
 
@@ -282,24 +302,13 @@ def session_clear_field():
 def session_get_pos(point):
     session = build_engine()
     try:
+        supply_truck = session.query(Supply.id_point).all()
         pos_point = get_pos(session, point)
         session.commit()
     except:
         session.rollback()
         raise
-    return pos_point
-
-
-def session_add_pos(position, point):
-    session = build_engine()
-    try:
-        add_position(session, position, point)
-        session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+    return pos_point, supply_truck
 
 
 def session_create():
@@ -319,29 +328,40 @@ def session_create():
 def session_create2(**kwargs):
     session = build_engine()
     try:
-        num_truck, supply_truck = go_truck(session, kwargs['weight'])
-        empty_truck = truck_supply(num_truck, supply_truck)
+        truck_departure = go_truck(session, kwargs['weight'])
         id_supply, num_party = go_supply(session, kwargs['supply'], kwargs['weight'],
-                              kwargs['date'], kwargs['loading'], empty_truck)
+                                         kwargs['date'], kwargs['loading'], truck_departure)
         session.commit()
     except:
         session.rollback()
         raise
-    return [id_supply, num_party, empty_truck]
+    return [id_supply, num_party, truck_departure]
 
 
 def session_add_consumption(**kwargs):
     session = build_engine()
     try:
-        num_truck, num_truck_supply, num_truck_consumption = get_num_truck(session, kwargs['party'])
-        truck_arrival = truck_consumption(num_truck, num_truck_supply, kwargs['travel_time'], num_truck_consumption)
+
+        if kwargs['travel_time'] > 1:
+            truck_arrival = session.query(Truck.num_truck). \
+                outerjoin(Consumption, Truck.num_truck == Consumption.num_truck_arrival). \
+                outerjoin(Supply, Truck.num_truck == Supply.num_truck_departure). \
+                filter(and_(Consumption.num_truck_arrival == None, Supply.num_truck_departure == None,
+                            Truck.tonnage >= kwargs['weight']))
+        else:
+            truck_arrival = session.query(Supply.num_truck_departure)\
+                .filter(Supply.num_party == kwargs['party'])
+        for truck in truck_arrival:
+            truck_arrival = truck[0]
+            break
         id_consumption = add_consumption(session, kwargs['consumption'], kwargs['date'],
                                          kwargs['unloading'], kwargs['party'], truck_arrival)
         session.commit()
-    except:
+    except Exception as e:
         session.rollback()
+        print(e)
         raise
-    return id_consumption, truck_arrival
+    return id_consumption
 
 
 def session_add_route(lst_point, route, id_supply, empty_truck):
@@ -356,10 +376,10 @@ def session_add_route(lst_point, route, id_supply, empty_truck):
         session.close_all()
 
 
-def session_get_routs():
+def session_get_routs(date_supply, count_agent):
     session = build_engine()
     try:
-        routs = get_routs(session)
+        routs = get_routs(session, date_supply, count_agent)
         session.commit()
     except:
         session.rollback()
@@ -464,3 +484,82 @@ def session_delete_warehouse():
     except:
         session.rollback()
         raise
+
+
+def session_getting_warehouse():
+    session = build_engine()
+    try:
+        warehouse_point = go_warehouse(session)
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return warehouse_point
+
+
+def session_add_warehouse_party(route_points, warehouse_point, num_party, loading, unloading):
+    session = build_engine()
+    try:
+        id_loading = session.query(Loading.id_loading).filter(Loading.loading_time == loading)
+        id_unloading = session.query(Unloading.id_unloading).filter(Unloading.unloading_time == unloading)
+        supply_date = session.query(Supply.date_departure).filter(Supply.num_party == num_party)
+        consumption_date = session.query(Consumption.date_arrival).filter(Consumption.num_party == num_party)
+        date_arrival, date_departure = search_date(supply_date, consumption_date, route_points, warehouse_point)
+
+        for load in id_loading:
+            for unload in id_unloading:
+                session.add(WarehouseParty(id_point=warehouse_point, num_party=num_party,
+                                           id_loading=load.id_loading, id_unloading=unload.id_unloading,
+                                           date_arrival=date_arrival, date_departure=date_departure))
+        session.commit()
+    except:
+        session.rollback()
+        raise
+
+
+def session_get_next_point():
+    session = build_engine()
+    try:
+        next_point = go_next_points(session)
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return next_point
+
+
+def session_route():
+    session = build_engine()
+    try:
+        max_route = session.query(func.max(Route.num_route))
+        all_optimal_point = []
+        for m in max_route:
+            count_route = 0
+            while count_route != m[0]:
+                count_route += 1
+                next_point = session.query(NextPoint.id_point, NextPoint.id_next_point).\
+                    join(Route, Route.id_agent == NextPoint.id_agent).filter(Route.num_route == count_route).\
+                    order_by(Route.num_point_route)
+                optimal_point = []
+                for point in next_point:
+                    optimal_point.append(point.id_point)
+                    optimal_point.append(point.id_next_point)
+                    all_optimal_point.append(optimal_point)
+                    optimal_point = []
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return all_optimal_point
+
+
+def session_get_date():
+    session = build_engine()
+    try:
+        min_date_supply = session.query(func.min(Supply.date_departure))
+        max_date_supply = session.query(func.max(Consumption.date_arrival))
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    return min_date_supply, max_date_supply

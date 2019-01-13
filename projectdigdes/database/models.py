@@ -66,8 +66,8 @@ class WarehouseParty(Base):
     __tablename__ = 'WarehouseParty'
     id_point = Column(Integer, ForeignKey('Warehouse.id_point'))
     num_party = Column(Integer, ForeignKey('PartyCargo.num_party'))
-    data_arrival = Column(DATETIME, nullable=False)
-    data_departure = Column(DATETIME, nullable=False)
+    date_arrival = Column(DATETIME, nullable=False)
+    date_departure = Column(DATETIME, nullable=False)
     id_loading = Column(Integer, ForeignKey('Loading.id_loading'))
     id_unloading = Column(Integer, ForeignKey('Unloading.id_unloading'))
 
@@ -89,7 +89,7 @@ class Consumption(Base):
     num_party = Column(Integer, ForeignKey('PartyCargo.num_party'), nullable=False)
     num_truck_arrival = Column(Integer, ForeignKey('Truck.num_truck'), primary_key=True)
     id_point = Column(Integer, ForeignKey('Point.id_point'), nullable=False)
-    date_supply = Column(DATETIME, nullable=False)
+    date_arrival = Column(DATETIME, nullable=False)
     id_unloading = Column(Integer, ForeignKey('Unloading.id_unloading'), nullable=False)
 
     num_party_consumption = relationship("PartyCargo", backref="num_party_consumption")
@@ -160,6 +160,7 @@ class Route(Base):
     distance = Column(Integer, nullable=False)
     num_route = Column(Integer, primary_key=True)
     num_party = Column(Integer, ForeignKey('PartyCargo.num_party'), nullable=False)
+    num_point_route = Column(Integer, nullable=False)
 
     num_party_route = relationship("PartyCargo", backref="num_party_route")
 
